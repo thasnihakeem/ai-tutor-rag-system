@@ -1,0 +1,154 @@
+/* Mascot Styles */
+
+.mascot-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+}
+
+.mascot {
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 6px solid #a78bfa;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  transition: all 0.3s ease;
+  animation: float 3s ease-in-out infinite;
+}
+
+.mascot.speaking {
+  animation: float 3s ease-in-out infinite, pulse 0.5s ease-in-out infinite;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Pulse animation when speaking */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Face elements */
+.mascot-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.mascot-eyes {
+  display: flex;
+  gap: 40px;
+}
+
+.eye {
+  width: 30px;
+  height: 30px;
+  background: white;
+  border-radius: 50%;
+  position: relative;
+  animation: blink 4s infinite;
+}
+
+.eye::after {
+  content: '';
+  width: 15px;
+  height: 15px;
+  background: #333;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes blink {
+  0%, 98%, 100% {
+    transform: scaleY(1);
+  }
+  99% {
+    transform: scaleY(0.1);
+  }
+}
+
+.mascot-mouth {
+  font-size: 2rem;
+  color: white;
+  transition: all 0.1s ease;
+}
+
+.mascot-mouth.open {
+  transform: scale(1.2);
+}
+
+/* Emoji overlay */
+.mascot-emoji {
+  position: absolute;
+  font-size: 4rem;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Pulse ring effect */
+.pulse-ring {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  border: 3px solid;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* Status text */
+.mascot-status {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.mascot-status p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Emotion badge */
+.emotion-badge {
+  padding: 8px 20px;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  text-transform: capitalize;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
