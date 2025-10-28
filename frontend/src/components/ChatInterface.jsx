@@ -45,19 +45,39 @@ const ChatInterface = ({ messages, onSendMessage, isLoading }) => {
    */
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000
+        } 
+      });
+      
+      // Use the best available format
+      let options = { mimeType: 'audio/webm' };
+      
+      // Try to use WAV if supported
+      if (MediaRecorder.isTypeSupported('audio/wav')) {
+        options = { mimeType: 'audio/wav' };
+      } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options = { mimeType: 'audio/webm;codecs=opus' };
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
+      
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        await handleAudioTranscription(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+        
+        // Convert to WAV in browser before sending
+        await convertToWavAndTranscribe(audioBlob, stream);
       };
 
       mediaRecorder.start();
@@ -66,6 +86,91 @@ const ChatInterface = ({ messages, onSendMessage, isLoading }) => {
       console.error('Error accessing microphone:', error);
       alert('Could not access microphone. Please check permissions.');
     }
+  };
+
+  /**
+   * Convert audio to WAV format and transcribe
+   */
+  const convertToWavAndTranscribe = async (audioBlob, stream) => {
+    try {
+      // Create audio context
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: 16000
+      });
+      
+      // Convert blob to array buffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      
+      // Decode audio data
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      
+      // Convert to WAV
+      const wavBlob = audioBufferToWav(audioBuffer);
+      
+      // Send WAV file to backend
+      await handleAudioTranscription(wavBlob);
+      
+      // Stop all tracks
+      stream.getTracks().forEach(track => track.stop());
+      
+    } catch (error) {
+      console.error('Error converting audio:', error);
+      alert('Error processing audio. Please try again.');
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  /**
+   * Convert AudioBuffer to WAV Blob
+   */
+  const audioBufferToWav = (audioBuffer) => {
+    const numChannels = 1; // Mono
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    
+    const channelData = audioBuffer.getChannelData(0);
+    const samples = new Int16Array(channelData.length);
+    
+    // Convert float samples to 16-bit PCM
+    for (let i = 0; i < channelData.length; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i]));
+      samples[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+    }
+    
+    // Create WAV file
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    
+    // WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+    
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true); // Subchunk1Size
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * bitDepth / 8, true);
+    view.setUint16(32, numChannels * bitDepth / 8, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+    
+    // Write PCM samples
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      view.setInt16(offset, samples[i], true);
+      offset += 2;
+    }
+    
+    return new Blob([buffer], { type: 'audio/wav' });
   };
 
   /**
